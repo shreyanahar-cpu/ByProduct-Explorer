@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chemical Reaction By-Product Checker</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #eef4ff;
+        padding: 25px;
+    }
+    input, button {
+        padding: 10px;
+        font-size: 18px;
+        width: 80%;
+        margin-bottom: 15px;
+    }
+    button {
+        width: 250px;
+        background: #004bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    button:hover {
+        background: #0036b5;
+    }
+    pre {
+        background: white;
+        padding: 18px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        white-space: pre-wrap;
+    }
+</style>
+</head>
+<body>
+
+<h2>🔬 Reaction Balancing & By-Product Uses Explorer</h2>
+<p>Enter a reaction like: <b>2C2H6 + 7O2 → 4CO2 + 6H2O</b></p>
+
+<input type="text" id="reaction" placeholder="Enter chemical reaction">
+<button onclick="checkReaction()">CHECK REACTION</button>
+
+<pre id="result"></pre>
+
+<script>
+// ===============================================
+// Dictionary of by-product uses
+// ===============================================
+const usesData = {
+    "H2O": "Used for cooling, steam generation, industrial solvent.",
+    "CO2": "Used in fire extinguishers, welding, dry ice, and carbonation.",
+    "H2": "Used in ammonia synthesis, welding, and fuel cells.",
+    "O2": "Used in medical oxygen, welding, rocket fuel.",
+    "CaO": "Used in glass, cement, and steel production.",
+    "NH3": "Used in fertilizers and refrigeration.",
+    "SO2": "Used for sulfuric acid production and food preservation.",
+    "NaCl": "Used in chemical industry and water purification.",
+    "Cl2": "Used in disinfectants and PVC manufacturing."
+};
+
+// ===============================================
+// Parse formula into element counts
+// ===============================================
+function parseFormula(formula) {
+    let regex = /([A-Z][a-z]?)(\d*)/g;
+    let counts = {};
+    let match;
+
+    while ((match = regex.exec(formula)) !== null) {
+        let element = match[1];
+        let count = match[2] ? parseInt(match[2]) : 1;
+        counts[element] = (counts[element] || 0) + count;
+    }
+    return counts;
+}
+
+// ===============================================
+// Multiply all elements in a formula by coefficient
+// ===============================================
+function multiply(counts, coefficient) {
+    let result = {};
+    for (let el in counts) {
+        result[el] = counts[el] * coefficient;
+    }
+    return result;
+}
+
+// ===============================================
+// Add totals
+// ===============================================
+function addTotals(target, counts) {
+    for (let el in counts) {
+        target[el] = (target[el] || 0) + counts[el];
+    }
+}
+
+// ===============================================
+// Better capitalization checker
+// Only warns if:
+//  - Formula starts with lowercase
+//  - Element is lowercase then uppercase (like hO2)
+// ===============================================
+function checkCapitalization(formula) {
+    return !/^([A-Z][a-z]?\d*)+$/.test(formula);
+}
+
+// ===============================================
+// Main function
+// ===============================================
+function checkReaction() {
+    let reaction = document.getElementById("reaction").value.trim();
+    let output = "";
+
+    if (!reaction.includes("→") && !reaction.includes("->")) {
+        document.getElementById("result").textContent =
+            "❌ Invalid format. Use → or ->";
+        return;
+    }
+
+    let parts = reaction.includes("→") ? reaction.split("→") : reaction.split("->");
+    let reactants = parts[0].trim();
+    let products = parts[1].trim();
+
+    let reactantList = reactants.split("+").map(r => r.trim());
+    let productList = products.split("+").map(p => p.trim());
+
+    // =============================
+    // Check capitalization warnings
+    // =============================
+    let warnings = [];
+    [...reactantList, ...productList].forEach(f => {
+        let chemical = f.replace(/^[0-9]+/, "").trim();
+        if (checkCapitalization(chemical))
+            warnings.push(`⚠ Warning: "${chemical}" may have capitalization errors.`);
+    });
+
+    // =============================
+    // Count totals
+    // =============================
+    let reactantTotals = {};
+    let productTotals = {};
+
+    reactantList.forEach(r => {
+        let coefficient = parseInt(r) || 1;
+        let formula = r.replace(/^[0-9]+/, "").trim();
+        let counts = parseFormula(formula);
+        addTotals(reactantTotals, multiply(counts, coefficient));
+    });
+
+    productList.forEach(p => {
+        let coefficient = parseInt(p) || 1;
+        let formula = p.replace(/^[0-9]+/, "").trim();
+        let counts = parseFormula(formula);
+        addTotals(productTotals, multiply(counts, coefficient));
+    });
+
+    // =============================
+    // Check balancing
+    // =============================
+    let balanced = true;
+    let allElements = new Set([...Object.keys(reactantTotals), ...Object.keys(productTotals)]);
+
+    allElements.forEach(el => {
+        if (reactantTotals[el] !== productTotals[el]) {
+            balanced = false;
+        }
+    });
+
+    output += balanced
+        ? "✅ Reaction is BALANCED.\n\n"
+        : "❌ Reaction is NOT BALANCED.\n\n";
+
+    // Show warnings
+    if (warnings.length > 0) {
+        output += warnings.join("\n") + "\n\n";
+    }
+
+    // =============================
+    // Identify by-products
+    // =============================
+    let formulas = productList.map(p => p.replace(/^[0-9]+/, "").trim());
+    let mainProduct = formulas[0];
+    let byProducts = formulas.slice(1);
+
+    output += `Main product: ${mainProduct}\n`;
+    output += `\nBy-products and uses:\n`;
+
+    if (byProducts.length === 0) {
+        output += "No by-products detected.";
+    } else {
+        byProducts.forEach(bp => {
+            if (usesData[bp])
+                output += `• ${bp} → ${usesData[bp]}\n`;
+            else
+                output += `• ${bp} → No data available.\n`;
+        });
+    }
+
+    document.getElementById("result").textContent = output;
+}
+</script>
+
+</body>
+</html>
+
+
+
